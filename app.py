@@ -10,9 +10,8 @@ st.title("📊 Unified Dashboard (SNOW / Azure / PTC)")
 def load_data():
     # 🔁 Replace with your OneDrive links later
     azure = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/All-VCE-Bugs.csv")
-    ptc = pd.read_excel(
-    "https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/PTC-Cases-Report.xlsx",
-    engine="openpyxl"
+    ptc = pd.read_csv(
+    "https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/PTC-Cases-Report.csv"
 )
     snow = pd.read_excel("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/Snow-incident.xlsx")
 
