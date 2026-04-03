@@ -109,8 +109,9 @@ release_filter = "ALL"
 if source == "AZURE":
     release_filter = create_filter(base_df, "Release")
 
-# ---------------- SEARCH (FIXED CLEAR) ----------------
-if "search_text" not in st.session_state:
+# ---------------- SEARCH (FINAL FIX) ----------------
+
+def clear_search():
     st.session_state.search_text = ""
 
 col1, col2, col3 = st.columns([10,1,1])
@@ -119,12 +120,10 @@ with col1:
     keyword = st.text_input("🔍 Search", key="search_text")
 
 with col2:
-    st.button("Search")
+    st.button("Search")  # optional
 
 with col3:
-    if st.button("❌"):
-        st.session_state.search_text = ""
-        st.rerun()
+    st.button("❌", on_click=clear_search)
 
 # ---------------- APPLY FILTER ----------------
 filtered = base_df.copy()
