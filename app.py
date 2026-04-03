@@ -3,24 +3,35 @@ import pandas as pd
 
 st.set_page_config(layout="wide")
 
-# ---------------- TITLE (LEFT TOP) ----------------
+# ---------------- TITLE ----------------
 st.markdown("## ⚙️ Ops Insight Dashboard")
 
 # ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
 
-    azure = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/All-VCE-Bugs.csv")
-    snow = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/Snow-incident.csv")
-    ptc = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/PTC-Cases-Report.csv")
+    # Azure (CSV)
+    azure = pd.read_csv(
+        "https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/All-VCE-Bugs.csv"
+    )
 
-    # Normalize column names (VERY IMPORTANT)
+    # SNOW (Excel)
+    snow = pd.read_excel(
+        "https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/Snow-incident.xlsx",
+        engine="openpyxl"
+    )
+
+    # PTC (CSV)
+    ptc = pd.read_csv(
+        "https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/PTC-Cases-Report.csv"
+    )
+
+    # ---------------- NORMALIZE COLUMN NAMES ----------------
     azure.columns = azure.columns.str.strip().str.lower()
     snow.columns = snow.columns.str.strip().str.lower()
     ptc.columns = ptc.columns.str.strip().str.lower()
 
-    # ---------------- SAFE COLUMN MAPPING ----------------
-
+    # ---------------- SAFE MAPPING FUNCTION ----------------
     def map_columns(df, mapping):
         new_df = pd.DataFrame()
         for new_col, possible_cols in mapping.items():
@@ -32,7 +43,8 @@ def load_data():
                 new_df[new_col] = None
         return new_df
 
-    # Azure mapping
+    # ---------------- COLUMN MAPPINGS ----------------
+
     azure_map = {
         "ID": ["id"],
         "Title": ["title"],
@@ -42,7 +54,6 @@ def load_data():
         "Release": ["release_windchill"]
     }
 
-    # SNOW mapping
     snow_map = {
         "ID": ["number"],
         "Title": ["short description"],
@@ -53,7 +64,6 @@ def load_data():
         "Assignment Group": ["assignment group"]
     }
 
-    # PTC mapping
     ptc_map = {
         "ID": ["number"],
         "Title": ["name"],
@@ -63,15 +73,17 @@ def load_data():
         "Plant": ["plant"]
     }
 
+    # ---------------- APPLY MAPPING ----------------
     azure_clean = map_columns(azure, azure_map)
     snow_clean = map_columns(snow, snow_map)
     ptc_clean = map_columns(ptc, ptc_map)
 
-    # Add source
+    # ---------------- ADD SOURCE ----------------
     azure_clean["Source"] = "Azure"
     snow_clean["Source"] = "SNOW"
     ptc_clean["Source"] = "PTC"
 
+    # ---------------- COMBINE ----------------
     df = pd.concat([azure_clean, snow_clean, ptc_clean], ignore_index=True)
 
     return df
@@ -144,9 +156,10 @@ if keyword:
         )
     ]
 
-# ---------------- LAYOUT: KPI LEFT ----------------
+# ---------------- LAYOUT ----------------
 left, right = st.columns([1, 3])
 
+# KPI LEFT
 with left:
     st.markdown("### 📊 KPIs")
 
@@ -161,7 +174,7 @@ with left:
     st.metric("SNOW", (filtered["Source"] == "SNOW").sum())
     st.metric("PTC", (filtered["Source"] == "PTC").sum())
 
-# ---------------- TABLE ----------------
+# TABLE RIGHT
 with right:
 
     desired_columns = [
