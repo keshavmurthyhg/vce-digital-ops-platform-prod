@@ -14,19 +14,19 @@ def load_data():
     snow = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/Snow-incident.csv")
     ptc = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/PTC-Cases-Report.csv")
 
-    # ---------------- STANDARDIZE ----------------
+    # ---------------- STANDARDIZE COLUMNS ----------------
 
-    # Azure mapping
+    # Azure
     azure = azure.rename(columns={
         "ID": "ID",
         "Title": "Title",
         "State": "State",
         "Assigned To": "Assigned To",
         "Created Date": "Created Date",
-        "Release_windchill": "Release",
+        "Release_windchill": "Release"
     })
 
-    # SNOW mapping
+    # SNOW
     snow = snow.rename(columns={
         "Number": "ID",
         "Short description": "Title",
@@ -37,7 +37,7 @@ def load_data():
         "Assignment group": "Assignment Group"
     })
 
-    # PTC mapping
+    # PTC
     ptc = ptc.rename(columns={
         "Number": "ID",
         "Name": "Title",
@@ -52,7 +52,7 @@ def load_data():
     snow["Source"] = "SNOW"
     ptc["Source"] = "PTC"
 
-    # Combine
+    # Combine all
     df = pd.concat([azure, snow, ptc], ignore_index=True)
 
     # Clean column names
@@ -60,7 +60,9 @@ def load_data():
 
     return df
 
-# ---------------- SIDEBAR ----------------
+df = load_data()
+
+# ---------------- SIDEBAR FILTERS ----------------
 st.sidebar.header("🔧 Filters")
 
 source = st.sidebar.selectbox("Source", ["ALL", "Azure", "SNOW", "PTC"])
@@ -83,16 +85,16 @@ state = create_filter(filtered, "State")
 if state != "ALL":
     filtered = filtered[filtered["State"].astype(str) == state]
 
-# ---------------- SOURCE SPECIFIC FILTERS ----------------
+# ---------------- SOURCE-SPECIFIC FILTERS ----------------
 if source == "Azure":
     assigned = create_filter(filtered, "Assigned To")
-    release = create_filter(filtered, "Release_windchill")
+    release = create_filter(filtered, "Release")
 
     if assigned != "ALL":
         filtered = filtered[filtered["Assigned To"].astype(str) == assigned]
 
     if release != "ALL":
-        filtered = filtered[filtered["Release_windchill"].astype(str) == release]
+        filtered = filtered[filtered["Release"].astype(str) == release]
 
 elif source == "SNOW":
     priority = create_filter(filtered, "Priority")
@@ -105,11 +107,11 @@ elif source == "SNOW":
         filtered = filtered[filtered["Assignment Group"].astype(str) == group]
 
 elif source == "PTC":
-    owner = create_filter(filtered, "Owner")
+    owner = create_filter(filtered, "Assigned To")
     plant = create_filter(filtered, "Plant")
 
     if owner != "ALL":
-        filtered = filtered[filtered["Owner"].astype(str) == owner]
+        filtered = filtered[filtered["Assigned To"].astype(str) == owner]
 
     if plant != "ALL":
         filtered = filtered[filtered["Plant"].astype(str) == plant]
@@ -125,8 +127,6 @@ if keyword:
         )
     ]
 
-
-
 # ---------------- KPI SECTION ----------------
 st.markdown("### 📊 Key Metrics")
 
@@ -134,8 +134,13 @@ col1, col2, col3, col4 = st.columns(4)
 
 total = len(filtered)
 
-open_count = filtered[filtered["State"].astype(str).str.contains("Open|New", case=False, na=False)].shape[0]
-closed_count = filtered[filtered["State"].astype(str).str.contains("Closed|Resolved", case=False, na=False)].shape[0]
+open_count = filtered[
+    filtered["State"].astype(str).str.contains("Open|New", case=False, na=False)
+].shape[0]
+
+closed_count = filtered[
+    filtered["State"].astype(str).str.contains("Closed|Resolved", case=False, na=False)
+].shape[0]
 
 azure_count = filtered[filtered["Source"] == "Azure"].shape[0]
 snow_count = filtered[filtered["Source"] == "SNOW"].shape[0]
@@ -146,12 +151,26 @@ col2.metric("Open / Active", open_count)
 col3.metric("Closed / Resolved", closed_count)
 col4.metric("Azure Records", azure_count)
 
-# Optional second row KPIs
 col5, col6 = st.columns(2)
 col5.metric("SNOW Records", snow_count)
 col6.metric("PTC Records", ptc_count)
 
+# ---------------- COLUMN ORDER FIX ----------------
+desired_columns = [
+    "Source",
+    "ID",
+    "Title",
+    "State",
+    "Assigned To",
+    "Priority",
+    "Assignment Group",
+    "Release",
+    "Plant",
+    "Created Date"
+]
 
+final_cols = [col for col in desired_columns if col in filtered.columns]
+filtered = filtered[final_cols]
 
 # ---------------- RESULTS ----------------
 st.write(f"### 🔢 Results: {len(filtered)}")
