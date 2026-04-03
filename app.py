@@ -97,16 +97,15 @@ release_filter = "ALL"
 if source == "AZURE":
     release_filter = create_filter(base_df, "Release")
 
-# ---------------- SEARCH + CLEAR ----------------
-col1, col2 = st.columns([10,1])
+# ---------------- SEARCH FORM (FIXED CLEAR) ----------------
+with st.form("search_form"):
+    col1, col2 = st.columns([10,1])
+    keyword = col1.text_input("🔍 Search")
+    search_btn = col2.form_submit_button("Search")
+    clear_btn = col2.form_submit_button("❌ Clear")
 
-with col1:
-    keyword = st.text_input("🔍 Search", key="search_box")
-
-with col2:
-    if st.button("❌"):
-        st.session_state["search_box"] = ""
-        keyword = ""
+if clear_btn:
+    keyword = ""
 
 # ---------------- APPLY FILTER ----------------
 filtered = base_df.copy()
@@ -134,13 +133,20 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# ---------------- ALIGNMENT ----------------
+def style_df(df):
+    return df.style.set_properties(**{'text-align': 'center'}).set_properties(
+        subset=["Description","Created By","Assigned To"],
+        **{'text-align': 'left'}
+    )
+
 cols = [
     "Number","Description","Priority","Status",
     "Created By","Created Date","Assigned To",
     "Resolution Date","Release","Source"
 ]
 
-st.dataframe(filtered[cols], use_container_width=True)
+st.dataframe(style_df(filtered[cols]), use_container_width=True)
 
 st.download_button(
     "⬇️ Download",
@@ -148,7 +154,7 @@ st.download_button(
     "filtered_data.csv"
 )
 
-# ---------------- KPI (BOTTOM LEFT) ----------------
+# ---------------- KPI (2 COLUMN GRID) ----------------
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📊 KPI")
 
@@ -158,16 +164,12 @@ def show_kpi(data):
     closed_count = data["Status"].astype(str).str.contains("closed|resolved", case=False, na=False).sum()
     cancelled_count = data["Status"].astype(str).str.contains("cancel", case=False, na=False).sum()
 
-    st.sidebar.markdown(
-        f"""
-        <div style="font-size:14px">
-        <b>Total:</b> {total}<br>
-        <b>Open:</b> {open_count}<br>
-        <b>Closed:</b> {closed_count}<br>
-        <b>Cancelled:</b> {cancelled_count}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    c1, c2 = st.sidebar.columns(2)
+    c1.metric("Total", total)
+    c2.metric("Open", open_count)
+
+    c3, c4 = st.sidebar.columns(2)
+    c3.metric("Closed", closed_count)
+    c4.metric("Cancelled", cancelled_count)
 
 show_kpi(base_df)
