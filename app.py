@@ -25,7 +25,7 @@ def load_data():
             "Created By": df.get("created by"),
             "Created Date": df.get("created date"),
             "Assigned To": df.get("assigned to"),
-            "Resolved Date": df.get("resolved date"),
+            "Resolution Date": df.get("resolved date"),
             "Release": df.get("release_windchill"),
             "Priority": None,
             "Source": "AZURE"
@@ -36,10 +36,10 @@ def load_data():
             "Number": df.get("number"),
             "Description": df.get("short description"),
             "Status": df.get("incident state"),
-            "Created By": df.get("opened by"),   # FIX
+            "Created By": df.get("opened by"),
             "Created Date": df.get("created"),
             "Assigned To": df.get("assigned to"),
-            "Resolved Date": df.get("resolved"),
+            "Resolution Date": df.get("resolved"),
             "Release": None,
             "Priority": df.get("priority"),
             "Source": "SNOW"
@@ -53,19 +53,17 @@ def load_data():
             "Created By": df.get("case contact"),
             "Created Date": df.get("created date"),
             "Assigned To": df.get("case assignee"),
-            "Resolved Date": df.get("resolved date"),
+            "Resolution Date": df.get("resolved date"),
             "Release": None,
             "Priority": df.get("severity"),
             "Source": "PTC"
         })
 
-    df = pd.concat([
+    return pd.concat([
         build_azure(azure),
         build_snow(snow),
         build_ptc(ptc)
     ], ignore_index=True)
-
-    return df
 
 
 df = load_data()
@@ -75,9 +73,6 @@ st.sidebar.markdown("## ⚙️ Ops Insight Dashboard")
 st.sidebar.markdown("---")
 
 menu = st.sidebar.selectbox("Menu", ["Search Tool"])
-
-# ---------------- SEARCH ----------------
-keyword = st.text_input("🔍 Search")
 
 # ---------------- KPI ----------------
 def show_kpi(data):
@@ -97,46 +92,63 @@ def show_kpi(data):
 st.sidebar.markdown("### 📊 KPI")
 show_kpi(df)
 
-# ---------------- FILTER FUNCTION ----------------
-def create_filter(data, column):
-    vals = data[column].dropna().astype(str).unique().tolist()
-    if len(vals) == 0:
-        return "ALL"
-    return st.sidebar.selectbox(column, ["ALL"] + sorted(vals))
+# ---------------- SEARCH ----------------
+keyword = st.text_input("🔍 Search")
+
+# ---------------- TABS ----------------
+tab_all, tab_az, tab_snow, tab_ptc = st.tabs(["All", "Azure", "SNOW", "PTC"])
+
+# ---------------- FILTERS (ONLY ONCE, BASED ON ACTIVE TAB) ----------------
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔧 Filters")
+
+active_source = st.session_state.get("active_tab", "ALL")
+
+# Helper for filter
+def create_filter(data, col):
+    vals = data[col].dropna().astype(str).unique().tolist()
+    return st.sidebar.selectbox(col, ["ALL"] + sorted(vals)) if vals else "ALL"
+
+# Base dataset for filters
+if active_source == "AZURE":
+    base_df = df[df["Source"] == "AZURE"]
+elif active_source == "SNOW":
+    base_df = df[df["Source"] == "SNOW"]
+elif active_source == "PTC":
+    base_df = df[df["Source"] == "PTC"]
+else:
+    base_df = df
+
+# Filters
+state_filter = create_filter(base_df, "Status")
+priority_filter = create_filter(base_df, "Priority")
+
+release_filter = "ALL"
+if active_source == "AZURE":
+    release_filter = create_filter(base_df, "Release")
 
 # ---------------- APPLY FILTER ----------------
-def apply_filters(data, source):
+def apply_filters(data):
 
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔧 Filters")
+    if state_filter != "ALL":
+        data = data[data["Status"] == state_filter]
 
-    filtered = data.copy()
+    if priority_filter != "ALL":
+        data = data[data["Priority"] == priority_filter]
 
-    state = create_filter(filtered, "Status")
-    if state != "ALL":
-        filtered = filtered[filtered["Status"] == state]
-
-    priority = create_filter(filtered, "Priority")
-    if priority != "ALL":
-        filtered = filtered[filtered["Priority"] == priority]
-
-    # Release ONLY for Azure
-    if source == "AZURE":
-        release = create_filter(filtered, "Release")
-        if release != "ALL":
-            filtered = filtered[filtered["Release"] == release]
+    if release_filter != "ALL":
+        data = data[data["Release"] == release_filter]
 
     if keyword:
-        filtered = filtered[
-            filtered.apply(lambda row: row.astype(str).str.contains(keyword, case=False).any(), axis=1)
-        ]
+        data = data[data.apply(lambda r: r.astype(str).str.contains(keyword, case=False).any(), axis=1)]
 
-    return filtered.reset_index(drop=True)
+    return data.reset_index(drop=True)
 
 # ---------------- TABLE ----------------
 def show_table(data, source):
+    st.session_state["active_tab"] = source
 
-    data = apply_filters(data, source)
+    data = apply_filters(data)
     data.index += 1
 
     st.write(f"### 🔢 Results: {len(data)}")
@@ -144,10 +156,8 @@ def show_table(data, source):
     cols = [
         "Number","Description","Priority","Status",
         "Created By","Created Date","Assigned To",
-        "Resolved Date","Release","Source"
+        "Resolution Date","Release","Source"
     ]
-
-    cols = [c for c in cols if c in data.columns]
 
     st.dataframe(data[cols], use_container_width=True)
 
@@ -158,9 +168,7 @@ def show_table(data, source):
         key=f"download_{source}"
     )
 
-# ---------------- TABS ----------------
-tab_all, tab_az, tab_snow, tab_ptc = st.tabs(["All", "Azure", "SNOW", "PTC"])
-
+# ---------------- TAB CONTENT ----------------
 with tab_all:
     show_table(df, "ALL")
 
