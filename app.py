@@ -3,66 +3,83 @@ import pandas as pd
 
 st.set_page_config(layout="wide")
 
-# ---------------- TITLE ----------------
-st.title("⚙️ Ops Insight Dashboard")
+# ---------------- TITLE (LEFT TOP) ----------------
+st.markdown("## ⚙️ Ops Insight Dashboard")
 
 # ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
 
     azure = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/All-VCE-Bugs.csv")
-    snow = pd.read_excel("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/Snow-incident.xlsx")
+    snow = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/Snow-incident.csv")
     ptc = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/PTC-Cases-Report.csv")
 
-    # ---------------- STANDARDIZE COLUMNS ----------------
+    # Normalize column names (VERY IMPORTANT)
+    azure.columns = azure.columns.str.strip().str.lower()
+    snow.columns = snow.columns.str.strip().str.lower()
+    ptc.columns = ptc.columns.str.strip().str.lower()
 
-    # Azure
-    azure = azure.rename(columns={
-        "ID": "ID",
-        "Title": "Title",
-        "State": "State",
-        "Assigned To": "Assigned To",
-        "Created Date": "Created Date",
-        "Release_windchill": "Release"
-    })
+    # ---------------- SAFE COLUMN MAPPING ----------------
 
-    # SNOW
-    snow = snow.rename(columns={
-        "Number": "ID",
-        "Short description": "Title",
-        "State": "State",
-        "Assigned to": "Assigned To",
-        "Opened": "Created Date",
-        "Priority": "Priority",
-        "Assignment group": "Assignment Group"
-    })
+    def map_columns(df, mapping):
+        new_df = pd.DataFrame()
+        for new_col, possible_cols in mapping.items():
+            for col in possible_cols:
+                if col in df.columns:
+                    new_df[new_col] = df[col]
+                    break
+            else:
+                new_df[new_col] = None
+        return new_df
 
-    # PTC
-    ptc = ptc.rename(columns={
-        "Number": "ID",
-        "Name": "Title",
-        "State": "State",
-        "Owner": "Assigned To",
-        "Created On": "Created Date",
-        "Plant": "Plant"
-    })
+    # Azure mapping
+    azure_map = {
+        "ID": ["id"],
+        "Title": ["title"],
+        "State": ["state"],
+        "Assigned To": ["assigned to"],
+        "Created Date": ["created date"],
+        "Release": ["release_windchill"]
+    }
 
-    # Add Source column
-    azure["Source"] = "Azure"
-    snow["Source"] = "SNOW"
-    ptc["Source"] = "PTC"
+    # SNOW mapping
+    snow_map = {
+        "ID": ["number"],
+        "Title": ["short description"],
+        "State": ["state"],
+        "Assigned To": ["assigned to"],
+        "Created Date": ["opened"],
+        "Priority": ["priority"],
+        "Assignment Group": ["assignment group"]
+    }
 
-    # Combine all
-    df = pd.concat([azure, snow, ptc], ignore_index=True)
+    # PTC mapping
+    ptc_map = {
+        "ID": ["number"],
+        "Title": ["name"],
+        "State": ["state"],
+        "Assigned To": ["owner"],
+        "Created Date": ["created on"],
+        "Plant": ["plant"]
+    }
 
-    # Clean column names
-    df.columns = df.columns.str.strip()
+    azure_clean = map_columns(azure, azure_map)
+    snow_clean = map_columns(snow, snow_map)
+    ptc_clean = map_columns(ptc, ptc_map)
+
+    # Add source
+    azure_clean["Source"] = "Azure"
+    snow_clean["Source"] = "SNOW"
+    ptc_clean["Source"] = "PTC"
+
+    df = pd.concat([azure_clean, snow_clean, ptc_clean], ignore_index=True)
 
     return df
 
+
 df = load_data()
 
-# ---------------- SIDEBAR FILTERS ----------------
+# ---------------- SIDEBAR ----------------
 st.sidebar.header("🔧 Filters")
 
 source = st.sidebar.selectbox("Source", ["ALL", "Azure", "SNOW", "PTC"])
@@ -85,7 +102,7 @@ state = create_filter(filtered, "State")
 if state != "ALL":
     filtered = filtered[filtered["State"].astype(str) == state]
 
-# ---------------- SOURCE-SPECIFIC FILTERS ----------------
+# ---------------- SOURCE FILTERS ----------------
 if source == "Azure":
     assigned = create_filter(filtered, "Assigned To")
     release = create_filter(filtered, "Release")
@@ -117,7 +134,7 @@ elif source == "PTC":
         filtered = filtered[filtered["Plant"].astype(str) == plant]
 
 # ---------------- SEARCH ----------------
-keyword = st.text_input("🔍 Search (All Columns)")
+keyword = st.text_input("🔍 Search")
 
 if keyword:
     filtered = filtered[
@@ -127,59 +144,48 @@ if keyword:
         )
     ]
 
-# ---------------- KPI SECTION ----------------
-st.markdown("### 📊 Key Metrics")
+# ---------------- LAYOUT: KPI LEFT ----------------
+left, right = st.columns([1, 3])
 
-col1, col2, col3, col4 = st.columns(4)
+with left:
+    st.markdown("### 📊 KPIs")
 
-total = len(filtered)
+    total = len(filtered)
+    open_count = filtered["State"].astype(str).str.contains("open|new", case=False, na=False).sum()
+    closed_count = filtered["State"].astype(str).str.contains("closed|resolved", case=False, na=False).sum()
 
-open_count = filtered[
-    filtered["State"].astype(str).str.contains("Open|New", case=False, na=False)
-].shape[0]
+    st.metric("Total", total)
+    st.metric("Open", open_count)
+    st.metric("Closed", closed_count)
+    st.metric("Azure", (filtered["Source"] == "Azure").sum())
+    st.metric("SNOW", (filtered["Source"] == "SNOW").sum())
+    st.metric("PTC", (filtered["Source"] == "PTC").sum())
 
-closed_count = filtered[
-    filtered["State"].astype(str).str.contains("Closed|Resolved", case=False, na=False)
-].shape[0]
+# ---------------- TABLE ----------------
+with right:
 
-azure_count = filtered[filtered["Source"] == "Azure"].shape[0]
-snow_count = filtered[filtered["Source"] == "SNOW"].shape[0]
-ptc_count = filtered[filtered["Source"] == "PTC"].shape[0]
+    desired_columns = [
+        "Source",
+        "ID",
+        "Title",
+        "State",
+        "Assigned To",
+        "Priority",
+        "Assignment Group",
+        "Release",
+        "Plant",
+        "Created Date"
+    ]
 
-col1.metric("Total Records", total)
-col2.metric("Open / Active", open_count)
-col3.metric("Closed / Resolved", closed_count)
-col4.metric("Azure Records", azure_count)
+    final_cols = [col for col in desired_columns if col in filtered.columns]
+    filtered = filtered[final_cols]
 
-col5, col6 = st.columns(2)
-col5.metric("SNOW Records", snow_count)
-col6.metric("PTC Records", ptc_count)
-
-# ---------------- COLUMN ORDER FIX ----------------
-desired_columns = [
-    "Source",
-    "ID",
-    "Title",
-    "State",
-    "Assigned To",
-    "Priority",
-    "Assignment Group",
-    "Release",
-    "Plant",
-    "Created Date"
-]
-
-final_cols = [col for col in desired_columns if col in filtered.columns]
-filtered = filtered[final_cols]
-
-# ---------------- RESULTS ----------------
-st.write(f"### 🔢 Results: {len(filtered)}")
-
-st.dataframe(filtered, use_container_width=True)
+    st.write(f"### 🔢 Results: {len(filtered)}")
+    st.dataframe(filtered, use_container_width=True)
 
 # ---------------- DOWNLOAD ----------------
 st.download_button(
-    "⬇️ Download Filtered Data",
+    "⬇️ Download",
     filtered.to_csv(index=False),
     "filtered_data.csv"
 )
