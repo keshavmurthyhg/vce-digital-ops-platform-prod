@@ -9,22 +9,56 @@ st.title("⚙️ Ops Insight Dashboard")
 # ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
+
     azure = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/All-VCE-Bugs.csv")
-    snow = pd.read_excel("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/Snow-incident.xlsx")
+    snow = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/Snow-incident.csv")
     ptc = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/main/PTC-Cases-Report.csv")
 
+    # ---------------- STANDARDIZE ----------------
+
+    # Azure mapping
+    azure = azure.rename(columns={
+        "ID": "ID",
+        "Title": "Title",
+        "State": "State",
+        "Assigned To": "Assigned To",
+        "Created Date": "Created Date",
+        "Release_windchill": "Release",
+    })
+
+    # SNOW mapping
+    snow = snow.rename(columns={
+        "Number": "ID",
+        "Short description": "Title",
+        "State": "State",
+        "Assigned to": "Assigned To",
+        "Opened": "Created Date",
+        "Priority": "Priority",
+        "Assignment group": "Assignment Group"
+    })
+
+    # PTC mapping
+    ptc = ptc.rename(columns={
+        "Number": "ID",
+        "Name": "Title",
+        "State": "State",
+        "Owner": "Assigned To",
+        "Created On": "Created Date",
+        "Plant": "Plant"
+    })
+
+    # Add Source column
     azure["Source"] = "Azure"
     snow["Source"] = "SNOW"
     ptc["Source"] = "PTC"
 
+    # Combine
     df = pd.concat([azure, snow, ptc], ignore_index=True)
 
-    # Clean columns
+    # Clean column names
     df.columns = df.columns.str.strip()
 
     return df
-
-df = load_data()
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.header("🔧 Filters")
@@ -91,6 +125,24 @@ if keyword:
         )
     ]
 
+desired_columns = [
+    "Source",
+    "ID",
+    "Title",
+    "State",
+    "Assigned To",
+    "Priority",
+    "Assignment Group",
+    "Release",
+    "Plant",
+    "Created Date"
+]
+
+# Keep only existing columns
+final_cols = [col for col in desired_columns if col in filtered.columns]
+
+filtered = filtered[final_cols]
+
 # ---------------- KPI SECTION ----------------
 st.markdown("### 📊 Key Metrics")
 
@@ -114,6 +166,8 @@ col4.metric("Azure Records", azure_count)
 col5, col6 = st.columns(2)
 col5.metric("SNOW Records", snow_count)
 col6.metric("PTC Records", ptc_count)
+
+
 
 # ---------------- RESULTS ----------------
 st.write(f"### 🔢 Results: {len(filtered)}")
