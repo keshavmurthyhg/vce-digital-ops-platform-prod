@@ -9,9 +9,9 @@ st.title("📊 Unified Dashboard (SNOW / Azure / PTC)")
 @st.cache_data
 def load_data():
     # 🔁 Replace with your OneDrive links later
-    azure = pd.read_csv("https://github.com/keshavmurthyhg/snow-ptc-azure-dashboard/raw/refs/heads/main/All-VCE-Bugs.csv")
-    ptc = pd.read_excel("https://github.com/keshavmurthyhg/snow-ptc-azure-dashboard/raw/refs/heads/main/PTC-Cases-Report.xlsx")
-    snow = pd.read_excel("https://github.com/keshavmurthyhg/snow-ptc-azure-dashboard/raw/refs/heads/main/Snow-incident.xlsx")
+    azure = pd.read_csv("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/raw/refs/heads/main/All-VCE-Bugs.csv")
+    ptc = pd.read_excel("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/raw/refs/heads/main/PTC-Cases-Report.xlsx")
+    snow = pd.read_excel("https://raw.githubusercontent.com/keshavmurthyhg/snow-ptc-azure-dashboard/raw/refs/heads/main/Snow-incident.xlsx")
 
     azure["Source"] = "Azure"
     snow["Source"] = "SNOW"
