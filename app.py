@@ -125,23 +125,7 @@ if keyword:
         )
     ]
 
-desired_columns = [
-    "Source",
-    "ID",
-    "Title",
-    "State",
-    "Assigned To",
-    "Priority",
-    "Assignment Group",
-    "Release",
-    "Plant",
-    "Created Date"
-]
 
-# Keep only existing columns
-final_cols = [col for col in desired_columns if col in filtered.columns]
-
-filtered = filtered[final_cols]
 
 # ---------------- KPI SECTION ----------------
 st.markdown("### 📊 Key Metrics")
