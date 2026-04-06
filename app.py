@@ -1,9 +1,9 @@
 import streamlit as st
-from data_loader import load_data
-from filters import create_filter, apply_filters
-from kpi import show_kpi
-from search import search_box
-from table import show_table
+from modules.data_loader import load_data
+from modules.filters import create_filter, apply_filters
+from modules.kpi import show_kpi
+from modules.search import search_box
+from modules.table import show_table
 
 st.set_page_config(layout="wide")
 
